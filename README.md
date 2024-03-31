@@ -1,6 +1,6 @@
 # `mximport`: Remove all limits on Python package imports 🚀
 
-```
+```bash
 pip install mximport
 ```
 ## ▮ Painless Relative Import
@@ -29,7 +29,7 @@ Traceback (most recent call last):
 ImportError: attempted relative import with no known parent package
 ```
 
-`mximport.inpkg()` can remove this limitation.
+`mximport.inpkg()` can remove this limitation:
 
 ```python
 # pkg/main.py
@@ -46,8 +46,9 @@ Then every thing is OK! Say goodbye to `python -m pkg.main`
 ## ▮ Import by Path
 
 import `.py` file or package by path, return a moudle object
-```
-module = import_by_path('/path/to/module.py')
+```python
+from mximport import import_by_path
 
+module = import_by_path('/path/to/module.py')
 pkg = import_by_path('/path/to/pkg')
 ```
