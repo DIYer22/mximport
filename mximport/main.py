@@ -41,11 +41,11 @@ class inpkg:
         self._name_ = frame.f_globals["__name__"]
         # NOTICE: second time %run will no '__package__' key
         self._package_ = self.frame.f_globals.get("__package__", None)
-        self.importTopLevelPackage = (
+        self.import_top_level_pkg = (
             self._name_ == "__main__" or self._name_ == filename(self._file_)
         )
 
-    def findPackageRoot(self):
+    def find_pkg_root(self):
         dirr = os.path.abspath(self._file_)
         files = []
         while len(dirr) > 1:
@@ -57,16 +57,16 @@ class inpkg:
         raise Exception('Has __init__.py in root "/__init__.py"')
 
     def __enter__(self):
-        if self.importTopLevelPackage:
-            packageroot, files = self.findPackageRoot()
+        if self.import_top_level_pkg:
+            pkg_root, files = self.find_pkg_root()
             if len(files) > 1:
-                top_level_package_path = os.path.join(packageroot, files[-1])
+                top_level_package_path = os.path.join(pkg_root, files[-1])
                 import_by_path(top_level_package_path)  # import top level package
             self.frame.f_globals["__name__"] = ".".join(files[::-1])
             self.frame.f_globals["__package__"] = ".".join(files[1:][::-1])
 
     def __exit__(self, *l):
-        if self.importTopLevelPackage:
+        if self.import_top_level_pkg:
             self.frame.f_globals["__name__"] = self._name_
             if self._package_ is None:
                 self.frame.f_globals.pop("__package__")
@@ -74,23 +74,10 @@ class inpkg:
                 self.frame.f_globals["__package__"] = self._package_
 
 
-def import_by_path(pyPath):
-    """
-    import `.py` file or package by path, return a moudle object
-
-    >>> module = import_by_path('far/away.py')
-    """
-    pyFile = pyPath
-    assert os.path.isfile(pyFile) or os.path.isdir(pyFile), pyFile
-    dirr = os.path.dirname(pyFile)
-    import importlib
-
-    try:
-        sys.path.insert(0, dirr)
-        module = importlib.import_module(os.path.basename(pyFile).replace(".py", ""))
-        return module
-    finally:
-        assert sys.path.pop(0) == dirr
+def anypath_to_abspath(path, _file_="python_shell.py"):
+    dirr = os.path.dirname(_file_)
+    path = os.path.abspath(os.path.join(dirr, os.path.expanduser(path)))
+    return path
 
 
 class syspath:
@@ -115,14 +102,10 @@ class syspath:
     def __init__(self, relpaths="."):
         frame = sys._getframe(1)
         _file_ = frame.f_globals.get("__file__", "python_shell.py")
-        dirr = os.path.dirname(_file_)
         if isinstance(relpaths, str):
             relpaths = [relpaths]
 
-        self.dirs = [
-            os.path.abspath(os.path.join(dirr, os.path.expanduser(relpath)))
-            for relpath in relpaths
-        ]
+        self.dirs = [anypath_to_abspath(relpath, _file_) for relpath in relpaths]
 
     def __enter__(self):
         with self.lock:
@@ -137,3 +120,24 @@ class syspath:
                 else:
                     ind = sys.path.index(d)
                     assert sys.path.pop(ind) == d, "mximport.syspath error: " + d
+
+
+def import_by_path(path):
+    """
+    import `.py` file or package by path, return a moudle object
+
+    >>> module = import_by_path('/path/to/module.py')
+    >>> pkg = import_by_path('/path/to/pkg')
+    >>> relative_module = import_by_path('../relative_module.py')
+    """
+    frame = sys._getframe(1)
+    _file_ = frame.f_globals.get("__file__", "python_shell.py")
+    path = anypath_to_abspath(path, _file_)
+
+    assert os.path.isfile(path) or os.path.isdir(path), path
+    dirr = os.path.dirname(path)
+    import importlib
+
+    with syspath(dirr):
+        module = importlib.import_module(os.path.basename(path).replace(".py", ""))
+        return module
