@@ -7,28 +7,27 @@ Created on Mon Apr  1 01:23:22 2024
 """
 import os
 import sys
+from multiprocessing import Lock
 
 
 def filename(path):
-    return os.path.basename(path).split(".")[0]
+    bname = os.path.basename(path)
+    rindex = bname.rfind(".") if "." in bname else None
+    return bname[:rindex]
 
 
 class inpkg:
     """
-    inpkg = in package
+    `inpkg` means "in package"
 
-    Execute relative import under __name__ == '__main__' enviroment in a package.
+    Directly execute py file has relative import in a package.
 
-    usage：
-        using:
-            >>> with inpkg():
-            >>>     from . import local_py
+    Usage：
+        >>> with inpkg():
+        >>>     from . import local_py
 
     Principle：
-        auto search and import "top level package". Then, temporary replace __name__ to "module name under top level package" during with statement
-
-    Zh-cn:
-        可以能直接运行包内含有 relative import code 的 py 文件
+        Auto search and import "top level package". Then, temporary replace __name__ to "module name under top level package" during with statement
     """
 
     def __init__(self):
@@ -92,3 +91,49 @@ def import_by_path(pyPath):
         return module
     finally:
         assert sys.path.pop(0) == dirr
+
+
+class syspath:
+    """
+    Temporary add the relative path to sys.path during with statement
+
+    Usage：
+        >>> with syspath(".."):
+        >>>     import father_module
+
+        >>> with syspath("/path/to/module/dir"):
+        >>>     import module
+
+    Parameters
+    ----------
+    relpath: str, List of str. default '.'
+        The dir paths of the python file or package that you want to import
+    """
+
+    lock = Lock()  # ensure work fine in multi-threading
+
+    def __init__(self, relpaths="."):
+        frame = sys._getframe(1)
+        _file_ = frame.f_globals.get("__file__", "python_shell.py")
+        dirr = os.path.dirname(_file_)
+        if isinstance(relpaths, str):
+            relpaths = [relpaths]
+
+        self.dirs = [
+            os.path.abspath(os.path.join(dirr, os.path.expanduser(relpath)))
+            for relpath in relpaths
+        ]
+
+    def __enter__(self):
+        with self.lock:
+            for d in self.dirs:
+                sys.path.insert(0, d)
+
+    def __exit__(self, *args):
+        with self.lock:
+            for d in self.dirs[::-1]:
+                if sys.path[0] == d:
+                    assert sys.path.pop(0) == d, "mximport.syspath error: " + d
+                else:
+                    ind = sys.path.index(d)
+                    assert sys.path.pop(ind) == d, "mximport.syspath error: " + d

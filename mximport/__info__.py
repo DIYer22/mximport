@@ -1,4 +1,4 @@
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 __description__ = "Remove all limits on Python package imports"
 __license__ = "MIT"
 __author__ = "DIYer22"

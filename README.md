@@ -43,6 +43,20 @@ if __name__ == "__main__":
 Then every thing is OK! Say goodbye to `python -m pkg.main`
 
 
+## ▮ Temporary add relative path in sys.path
+
+Temporary add the relative path to sys.path during with statement
+
+Usage：
+```python
+from mximport import syspath
+with syspath(".."):  # relative path
+    import father_module
+
+with syspath("/abspath/to/module/dir"):
+    import module
+```
+
 ## ▮ Import by Path
 
 import `.py` file or package by path, return a moudle object
